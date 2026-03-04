@@ -5,8 +5,9 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
 const { validateRegister, validateLogin } = require('../middleware/validators');
+const { createRateLimitMiddleware, LIMITS } = require('../middleware/rateLimit');
 
-router.post('/register', validateRegister, async (req, res) => {
+router.post('/register', createRateLimitMiddleware(LIMITS.auth.limit, LIMITS.auth.windowMs), validateRegister, async (req, res) => {
   try {
     const { username, password } = req.body;
     
@@ -27,7 +28,7 @@ router.post('/register', validateRegister, async (req, res) => {
   }
 });
 
-router.post('/login', validateLogin, async (req, res) => {
+router.post('/login', createRateLimitMiddleware(LIMITS.auth.limit, LIMITS.auth.windowMs), validateLogin, async (req, res) => {
   try {
     const { username, password } = req.body;
     
