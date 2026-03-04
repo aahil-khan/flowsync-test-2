@@ -3,9 +3,10 @@ const router = express.Router();
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
+const { generateAccessToken, generateRefreshToken, revokeToken } = require('../utils/jwt');
 const { validateRegister, validateLogin } = require('../middleware/validators');
 const { createRateLimitMiddleware, LIMITS } = require('../middleware/rateLimit');
+const requireAuth = require('../middleware/requireAuth');
 
 router.post('/register', createRateLimitMiddleware(LIMITS.auth.limit, LIMITS.auth.windowMs), validateRegister, async (req, res) => {
   try {
@@ -69,6 +70,22 @@ router.post('/refresh', async (req, res) => {
     res.json({ accessToken, tokenType: 'Bearer' });
   } catch (error) {
     res.status(401).json({ error: 'Invalid refresh token' });
+  }
+});
+
+router.post('/logout', requireAuth, async (req, res) => {
+  try {
+    const token = req.token;
+    const userId = req.userId;
+    
+    const revoked = await revokeToken(token, userId, 'logout');
+    if (!revoked) {
+      return res.status(500).json({ error: 'Failed to revoke token' });
+    }
+    
+    res.json({ message: 'Successfully logged out' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
