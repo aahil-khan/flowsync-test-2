@@ -1,14 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const Session = require('../models/Session');
+const { generateAccessToken, generateRefreshToken } = require('../utils/jwt');
 
 router.post('/register', async (req, res) => {
   try {
     const { username, password } = req.body;
     
-    // Check if user exists
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password required' });
+    }
+    
     const existingUser = await User.findOne({ username });
     if (existingUser) {
       return res.status(400).json({ error: 'User already exists' });
@@ -30,6 +34,10 @@ router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password required' });
+    }
+    
     const user = await User.findOne({ username });
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -40,14 +48,33 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
     
-    // Generate and store token in session
-    const token = crypto.randomBytes(32).toString('hex');
-    const session = new Session({ userId: user._id, token });
-    await session.save();
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
     
-    res.json({ token, userId: user._id, expiresAt: session.expiresAt });
+    res.json({ 
+      accessToken, 
+      refreshToken, 
+      userId: user._id,
+      tokenType: 'Bearer'
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+router.post('/refresh', async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({ error: 'Refresh token required' });
+    }
+    
+    const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET || 'dev-secret-key');
+    const accessToken = generateAccessToken(decoded.userId);
+    
+    res.json({ accessToken, tokenType: 'Bearer' });
+  } catch (error) {
+    res.status(401).json({ error: 'Invalid refresh token' });
   }
 });
 
