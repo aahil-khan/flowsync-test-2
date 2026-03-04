@@ -3,11 +3,19 @@ const router = express.Router();
 const Task = require('../models/Task');
 const requireAuth = require('../middleware/requireAuth');
 const { validateTaskCreate } = require('../middleware/validators');
+const { getPaginationParams, buildPaginationResponse } = require('../utils/pagination');
 
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const tasks = await Task.find({ userId: req.userId });
-    res.json(tasks);
+    const { skip, limit, page } = getPaginationParams(req);
+    
+    const total = await Task.countDocuments({ userId: req.userId });
+    const tasks = await Task.find({ userId: req.userId })
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+    
+    res.json(buildPaginationResponse(tasks, page, limit, total));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
