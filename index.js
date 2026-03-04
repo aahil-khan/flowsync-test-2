@@ -11,8 +11,9 @@ app.use(express.json());
 app.use(requestLogger);
 
 app.get('/', (req, res) => res.json({ status: 'ok' }));
-app.use('/tasks', require('./routes/tasks'));
 app.use('/auth', require('./routes/auth'));
+app.use('/users', require('./routes/user'));
+app.use('/tasks', require('./routes/tasks'));
 
 // 404 and error handlers (must be last)
 app.use(notFoundHandler);
