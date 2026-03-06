@@ -2,22 +2,28 @@ const express = require('express');
 const router = express.Router();
 const Task = require('../models/Task');
 const requireAuth = require('../middleware/requireAuth');
+const { validateTaskCreate } = require('../middleware/validators');
+const { getPaginationParams, buildPaginationResponse } = require('../utils/pagination');
 
 router.get('/', requireAuth, async (req, res) => {
   try {
-    const tasks = await Task.find({ userId: req.userId });
-    res.json(tasks);
+    const { skip, limit, page } = getPaginationParams(req);
+    
+    const total = await Task.countDocuments({ userId: req.userId });
+    const tasks = await Task.find({ userId: req.userId })
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+    
+    res.json(buildPaginationResponse(tasks, page, limit, total));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-router.post('/', requireAuth, async (req, res) => {
+router.post('/', requireAuth, validateTaskCreate, async (req, res) => {
   try {
     const { title } = req.body;
-    if (!title) {
-      return res.status(400).json({ error: 'Title is required' });
-    }
     const task = new Task({ title, userId: req.userId });
     await task.save();
     res.status(201).json(task);
